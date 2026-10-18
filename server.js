@@ -318,6 +318,20 @@ async function consturctServer(moduleDefs) {
   app.use(cache('2 minutes', (_, res) => res.statusCode === 200));
 
   /**
+   * Vercel CDN cache headers (s-maxage) for high-frequency read-only endpoints.
+   * Independent middleware appended after existing logic; does not modify original behavior.
+   */
+  const CDN_CACHE_RULES = [
+    { match: /^\/song\/url/, header: 'public, s-maxage=600, stale-while-revalidate=3600' },
+    { match: /^\/lyric/, header: 'public, s-maxage=86400, stale-while-revalidate=86400' },
+  ]
+  app.use((req, res, next) => {
+    const rule = CDN_CACHE_RULES.find((r) => r.match.test(req.path))
+    if (rule) res.setHeader('Cache-Control', rule.header)
+    next()
+  })
+
+  /**
    * ============================================================
    * 动态路由注册
    * ============================================================
